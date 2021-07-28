@@ -7,5 +7,6 @@
   :serial t
   :depends-on (:collection-reader-macros :fiveam)
   :components ((:file "package")
+	       (:file "hash-table-utils")
 	       (:file "hash-table")
                (:file "clojure-cl")))
