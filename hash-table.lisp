@@ -332,7 +332,7 @@
   (with-accessors ((count hman-count)
 		   (array hman-array))
       node
-    (let ((new-array (make-array (* 2 (1- count))))
+    (let ((new-array (make-array (* 2 (1- count)) :initial-element nil))
 	  (j 1)
 	  (bitmap 0))
       (dotimes (i idx)
@@ -408,7 +408,7 @@
     (if (equal edit this-edit)
 	node
 	(let* ((n (integer-count-bits bitmap))
-	       (new-array (make-array (if (>= n 0) (* 2 (1+ n)) 4))))
+	       (new-array (make-array (if (>= n 0) (* 2 (1+ n)) 4) :initial-element nil)))
 	  (array-copy array 0 new-array 0 (* 2 n))
 	  (make-hash-map-bitmap-node :edit edit :bitmap bitmap :array new-array)))))
 
@@ -471,7 +471,7 @@
 	       editable))
 
 	    ((>= n 16)
-	     (let* ((nodes (make-array 32))
+	     (let* ((nodes (make-array 32 :initial-element nil))
 		    (jdx (mask hash shift))
 		    (j 0))
 	       (setf (aref nodes jdx) (node-assoc-edit +empty-hash-map-node+ edit (+ 5 shift) hash key val added-leaf))
@@ -484,7 +484,7 @@
 	       (make-hash-map-array-node :edit edit :count (1+ n) :array nodes)))
 
 	    (t
-	     (let ((new-array (make-array (* 2 (1+ n)))))
+	     (let ((new-array (make-array (* 2 (1+ n)) :initial-element nil)))
 	       (array-copy array 0 new-array 0 (* 2 idx))
 	       (setf (aref new-array (* 2 idx)) key)
 	       (setf (box-val added-leaf) added-leaf)
@@ -526,7 +526,7 @@
 	;; else
 	(let ((n (integer-count-bits bitmap)))
 	  (if (>= n 16)
-	    (let* ((nodes (make-array 32))
+	    (let* ((nodes (make-array 32 :initial-element nil))
 		   (jdx (mask hash shift))
 		   (j 0))
 	      (setf (aref nodes jdx) (node-assoc +empty-hash-map-node+ (+ 5 shift) hash key val added-leaf))
@@ -538,7 +538,7 @@
 		  (incf j 2)))
 	      (make-hash-map-array-node :count (1+ n) :array nodes))
 	    ; else
-	    (let ((new-array (make-array (* 2 (1+ n)))))
+	    (let ((new-array (make-array (* 2 (1+ n)) :initial-element nil)))
 	      (array-copy array 0 new-array 0 (* 2 idx))
 	      (setf (aref new-array (* 2 idx)) key)
 	      (setf (box-val added-leaf) added-leaf)
@@ -626,7 +626,7 @@
 		  node
 		  (make-hash-map-collision-node :edit nil :hash hash :count count
 						:array (clone-and-set array (1+ idx) val)))
-	      (let ((new-array (make-array (* 2 (1+ count)))))
+	      (let ((new-array (make-array (* 2 (1+ count)) :initial-element nil)))
 		(array-copy array 0 new-array 0 (* 2 count))
 		(setf (aref new-array (* 2 count)) key)
 		(setf (aref new-array (1+ (* 2 count))) val)
@@ -653,7 +653,7 @@
       node
     (if (equal edit this-edit)
 	node
-	(let ((new-array (make-array (* 2 (1+ count)))))
+	(let ((new-array (make-array (* 2 (1+ count)) :initial-element nil)))
 	  (array-copy array 0 new-array 0 (* 2 count))
 	  (make-hash-map-collision-node :edit edit
 					:hash hash
@@ -736,6 +736,8 @@
 	       
 		for cnt from 0
 		while (and remaining (< cnt 1000))
-		do (format stream "~a ~a" key val)
-		 (when nremaining (format stream ", ")))
+		do (prin1 key stream)
+		   (write-char #\  stream)
+		   (prin1 val stream)
+		 (when nremaining (princ ", " stream)))
 	  (write-char #\} stream)))))
