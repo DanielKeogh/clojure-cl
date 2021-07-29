@@ -55,13 +55,16 @@
   (array nil :type vector))
 
 (defgeneric map-assoc (hash-map key val))
+(defgeneric map-make-iterator (hash-map))
 (defgeneric val-at (hash-map key &optional not-found))
+(defgeneric node-make-iterator (node))
 (defgeneric node-assoc (node shift hash key val addedLeaf))
 (defgeneric node-assoc-edit (node edit shift hash key val addedLeaf))
 (defgeneric node-find (node shift hash key not-found))
 (defgeneric node-without (node shift hash key))
 (defgeneric node-without-edit (node edit shift hash key removed-leaf))
 
+(defvar +empty-hash-iterator+ (lambda () (lambda () (values nil nil nil))))
 (defvar +empty-hash-map-node+ (make-hash-map-bitmap-node :bitmap 0 :array (vector)))
 (defvar +empty-hash-map+ (make-persistent-hash-map :count 0 :root nil :has-null nil :null-value nil))
 (defvar +not-found+ (gensym))
@@ -153,6 +156,24 @@
 	(if has-null null-value not-found)
 	(if root (node-find root 0 (hash key) key not-found) not-found))))
 
+(defmethod map-make-iterator ((map persistent-hash-map))
+  (with-accessors ((root phm-root)
+		   (has-null phm-has-null)
+		   (null-value phm-null-value))
+      map
+    (let ((base-itr-provider (if root (node-make-iterator root)
+				 +empty-hash-iterator+)))
+      (if has-null
+	  (lambda ()
+	    (let ((itr (funcall base-itr-provider))
+		  returned-nil)
+	      (lambda ()
+		(if returned-nil
+		    (progn (setf returned-nil t)
+			   (values t nil null-value))
+		    (funcall itr)))))
+	  base-itr-provider))))
+
 ;;; transient-hash-map impl
 
 (defun thm-do-assoc (map key val)
@@ -235,6 +256,24 @@
 (defmethod val-at ((map transient-hash-map) key &optional not-found)
   (thm-ensure-editable map)
   (thm-do-val-at map key not-found))
+
+(defmethod map-make-iterator ((map transient-hash-map))
+  (with-accessors ((root thm-root)
+		   (has-null thm-has-null)
+		   (null-value thm-null-value))
+      map
+    (let ((base-itr-provider (if root (node-make-iterator root)
+				 +empty-hash-iterator+)))
+      (if has-null
+	  (lambda ()
+	    (let ((itr (funcall base-itr-provider))
+		  returned-nil)
+	      (lambda ()
+		(if returned-nil
+		    (progn (setf returned-nil t)
+			   (values t nil null-value))
+		    (funcall itr)))))
+	  base-itr-provider))))
 
 ;;; hash-map-array-node
 
@@ -336,6 +375,28 @@
     (if (null node)
 	not-found
 	(node-find node (+ 5 shift) hash key not-found))))
+
+(defmethod node-make-iterator ((node hash-map-array-node))
+  (with-accessors ((array hman-array))
+      node
+    (lambda ()
+      (let ((i 0)
+	    nested-itr)
+	(lambda ()
+	  (loop while t do
+	    (cond (nested-itr
+		   (multiple-value-bind (has-val key val)
+		       (funcall nested-itr)
+		     (if has-val
+			 (return (values has-val key val))
+			 (progn (setf nested-itr nil)
+				(incf i)))))
+		  ((< i (length array))
+		   (let ((n (aref array i)))
+		     (if n
+			 (setf nested-itr (node-make-iterator n))
+			 (incf i))))
+		  (t (return (values nil nil nil))))))))))
 
 ;;; hash-map-bitmap-node
 
@@ -520,6 +581,29 @@
 	      ((equiv key key-or-null))
 	      (t node)))))))
 
+(defun node-make-array-iterator (array)
+  (lambda ()
+    (let ((i 0)
+	  nested-itr)
+      (lambda ()
+	(loop while t do
+	  (cond (nested-itr
+		 (multiple-value-bind (has-val key val)
+		     (funcall nested-itr)
+		   (if has-val
+		       (return (values has-val key val))
+		       (setf nested-itr nil))))
+		((< i (length array)) ;; Should be fine
+		 (let ((key (aref array i))
+		       (val (aref array (1+ i))))
+		   (incf i 2)
+		   (cond (key (return (values t key val)))
+			 (val (setf nested-itr (node-make-iterator val))))))
+		(t (return (values nil nil nil)))))))))
+
+(defmethod node-make-iterator ((node hash-map-bitmap-node))
+  (node-make-array-iterator (hmn-array node)))
+
 ;; hash-collision-node
 
 (defun hmcn-find-index (node key)
@@ -624,7 +708,34 @@
 	      (decf (hmcn-count editable))
 	      editable))))))
 
+(defmethod node-find ((node hash-map-collision-node) shift hash key not-found)
+  (let ((idx (hmcn-find-index node key)))
+    (if (< idx 0)
+	not-found
+	(aref (hmcn-array node) (1+ idx)))))
+
+(defmethod node-make-iterator ((node hash-map-collision-node))
+  (node-make-array-iterator (hmcn-array node)))
+
 ;; Print
 
 (defmethod print-object ((map persistent-hash-map) stream)
-  (format stream "<Map Count:~a>" (phm-count map)))
+  (with-accessors ((count phm-count))
+      map
+    (if (> count 1000)
+	(format stream "<Map Count:~a>" (phm-count map))
+	(progn
+	  (write-char #\{ stream)
+	  (loop with itr = (funcall (map-make-iterator map))
+		for (remaining key val) = (multiple-value-list (funcall itr))
+		  then (list nremaining nkey nval)
+		for (nremaining nkey nval) = (if remaining
+					       (multiple-value-list (funcall itr))
+					       (list nil nil nil))
+		  then (multiple-value-list (funcall itr))
+	       
+		for cnt from 0
+		while (and remaining (< cnt 1000))
+		do (format stream "~a ~a" key val)
+		 (when nremaining (format stream ", ")))
+	  (write-char #\} stream)))))
