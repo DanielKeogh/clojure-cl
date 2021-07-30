@@ -44,8 +44,8 @@
 (defstruct (hash-map-array-node (:conc-name hman-)
 				(:include hash-map-node))
   (edit nil)
-  (count nil :type integer :read-only t)
-  (array nil :type vector :read-only t))
+  (count nil :type integer)
+  (array nil :type vector))
 
 (defstruct (hash-map-collision-node (:conc-name hmcn-)
 				    (:include hash-map-node))
@@ -64,10 +64,10 @@
 (defgeneric node-without (node shift hash key))
 (defgeneric node-without-edit (node edit shift hash key removed-leaf))
 
-(defvar +empty-hash-iterator+ (lambda () (lambda () (values nil nil nil))))
-(defvar +empty-hash-map-node+ (make-hash-map-bitmap-node :bitmap 0 :array (vector)))
-(defvar +empty-hash-map+ (make-persistent-hash-map :count 0 :root nil :has-null nil :null-value nil))
-(defvar +not-found+ (gensym))
+(defvar *empty-hash-iterator* (lambda () (lambda () (values nil nil nil))))
+(defvar *empty-hash-map-node* (make-hash-map-bitmap-node :bitmap 0 :array (vector)))
+(defvar *empty-hash-map* (make-persistent-hash-map :count 0 :root nil :has-null nil :null-value nil))
+(defvar *not-found* (gensym))
 
 (defun hmn-index (node bit)
   (integer-count-&-bits (hmn-bitmap node) (1- bit)))
@@ -91,7 +91,7 @@
 	(make-hash-map-collision-node :edit nil :hash key1hash :count 2 :array (vector key1 val1 key2 val2))
 	(let* ((added-leaf (make-box :val nil))
 	       (edit (make-atomic-reference))
-	       (n1 (node-assoc-edit +empty-hash-map-node+ edit shift key1hash key1 val1 added-leaf)))
+	       (n1 (node-assoc-edit *empty-hash-map-node* edit shift key1hash key1 val1 added-leaf)))
 	  (node-assoc-edit n1 edit shift key2hash key2 val2 added-leaf)))))
 
 (defun create-edit-node (edit shift key1 val1 key2hash key2 val2)
@@ -100,7 +100,7 @@
     (if (= key1hash key2hash)
 	(make-hash-map-collision-node :edit nil :hash key1hash :count 2 :array (vector key1 val1 key2 val2))
 	(let* ((added-leaf (make-box :val nil))
-	       (n1 (node-assoc-edit +empty-hash-map-node+ edit shift key1hash key1 val1 added-leaf)))
+	       (n1 (node-assoc-edit *empty-hash-map-node* edit shift key1hash key1 val1 added-leaf)))
 	  (node-assoc-edit n1 edit shift key2hash key2 val2 added-leaf)))))
 
 ;;; Persisent hash map impl
@@ -114,7 +114,7 @@
    :null-value (phm-null-value map)))
 
 (defun create-persistent-hash-map (&rest args)
-  (let ((r (phm-as-transient +empty-hash-map+)))
+  (let ((r (phm-as-transient *empty-hash-map*)))
     (loop for (key val) on args by #'cddr
 	  do (setf r (map-assoc r key val)))
     (thm-persistent r)))
@@ -135,7 +135,7 @@
 				      :has-null t
 				      :null-value val))
 	(let* ((added-leaf (make-box :val nil))
-	       (new-root (node-assoc (if (not root) +empty-hash-map-node+ root)
+	       (new-root (node-assoc (if (not root) *empty-hash-map-node* root)
 				     0 (hash key) key val added-leaf)))
 	  (if (equal new-root root)
 	      m
@@ -162,7 +162,7 @@
 		   (null-value phm-null-value))
       map
     (let ((base-itr-provider (if root (node-make-iterator root)
-				 +empty-hash-iterator+)))
+				 *empty-hash-iterator*)))
       (if has-null
 	  (lambda ()
 	    (let ((itr (funcall base-itr-provider))
@@ -191,7 +191,7 @@
 	;; else
 	(progn
 	  (setf (box-val leaf-flag) nil)
-	  (let ((n (node-assoc (or root +empty-hash-map-node+)
+	  (let ((n (node-assoc (or root *empty-hash-map-node*)
 			       0 (hash key) key val leaf-flag)))
 	    (unless (equal n root)
 	      (setf root n))
@@ -263,7 +263,7 @@
 		   (null-value thm-null-value))
       map
     (let ((base-itr-provider (if root (node-make-iterator root)
-				 +empty-hash-iterator+)))
+				 *empty-hash-iterator*)))
       (if has-null
 	  (lambda ()
 	    (let ((itr (funcall base-itr-provider))
@@ -285,7 +285,7 @@
 	   (node (aref array idx)))
       
       (if (null node)
-	  (let ((new-node (node-assoc +empty-hash-map-node+
+	  (let ((new-node (node-assoc *empty-hash-map-node*
 				      (+ shift 5) hash key val added-leaf)))
 	    (make-hash-map-array-node
 	     :edit nil
@@ -319,7 +319,7 @@
     (let* ((idx (mask hash shift))
 	   (node (aref array idx)))
       (if (null node)
-	  (let* ((n (node-assoc-edit +empty-hash-map-node+ edit (+ 5 shift) hash key val added-leaf))
+	  (let* ((n (node-assoc-edit *empty-hash-map-node* edit (+ 5 shift) hash key val added-leaf))
 		 (editable (hman-edit-and-set this edit idx n)))
 	    (incf (hman-count editable))
 	    editable)
@@ -474,12 +474,12 @@
 	     (let* ((nodes (make-array 32 :initial-element nil))
 		    (jdx (mask hash shift))
 		    (j 0))
-	       (setf (aref nodes jdx) (node-assoc-edit +empty-hash-map-node+ edit (+ 5 shift) hash key val added-leaf))
+	       (setf (aref nodes jdx) (node-assoc-edit *empty-hash-map-node* edit (+ 5 shift) hash key val added-leaf))
 	       (dotimes (i 32)
 		 (when (/= 0 (logand (ash bitmap i) 1)) ;; TODO logbitp
 		   (if (null (aref array j))
 		       (setf (aref nodes i) (aref array (1+ j)))
-		       (setf (aref nodes i) (node-assoc-edit +empty-hash-map-node+ edit (+ 5 shift) (hash (aref array j)) (aref array j) (aref array (1+ j)) added-leaf)))
+		       (setf (aref nodes i) (node-assoc-edit *empty-hash-map-node* edit (+ 5 shift) (hash (aref array j)) (aref array j) (aref array (1+ j)) added-leaf)))
 		   (incf j 2)))
 	       (make-hash-map-array-node :edit edit :count (1+ n) :array nodes)))
 
@@ -529,12 +529,12 @@
 	    (let* ((nodes (make-array 32 :initial-element nil))
 		   (jdx (mask hash shift))
 		   (j 0))
-	      (setf (aref nodes jdx) (node-assoc +empty-hash-map-node+ (+ 5 shift) hash key val added-leaf))
+	      (setf (aref nodes jdx) (node-assoc *empty-hash-map-node* (+ 5 shift) hash key val added-leaf))
 	      (dotimes (i 32)
 		(when (/= 0 (logand (ash bitmap i) 1)) ;; TODO logbitp
 		  (if (null (aref array j))
 		      (setf (aref nodes i) (aref array (1+ j)))
-		      (setf (aref nodes i) (node-assoc +empty-hash-map-node+ (+ 5 shift) (hash (aref array j)) (aref array j) (aref array (1+ j)) added-leaf)))
+		      (setf (aref nodes i) (node-assoc *empty-hash-map-node* (+ 5 shift) (hash (aref array j)) (aref array j) (aref array (1+ j)) added-leaf)))
 		  (incf j 2)))
 	      (make-hash-map-array-node :count (1+ n) :array nodes))
 	    ; else
