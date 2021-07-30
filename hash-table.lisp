@@ -56,7 +56,7 @@
 
 (defgeneric map-assoc (hash-map key val))
 (defgeneric map-make-iterator (hash-map))
-(defgeneric val-at (hash-map key &optional not-found))
+(defgeneric map-val-at (hash-map key &optional not-found))
 (defgeneric node-make-iterator (node))
 (defgeneric node-assoc (node shift hash key val addedLeaf))
 (defgeneric node-assoc-edit (node edit shift hash key val addedLeaf))
@@ -113,7 +113,7 @@
    :has-null (phm-has-null map)
    :null-value (phm-null-value map)))
 
-(defun create-persistent-hash-map (&rest args)
+(defun create-persistent-map (&rest args)
   (let ((r (phm-as-transient *empty-hash-map*)))
     (loop for (key val) on args by #'cddr
 	  do (setf r (map-assoc r key val)))
@@ -147,7 +147,7 @@
 					:has-null has-null
 					:null-value null-value))))))
 
-(defmethod val-at ((map persistent-hash-map) key &optional not-found)
+(defmethod map-val-at ((map persistent-hash-map) key &optional not-found)
   (with-accessors ((root phm-root)
 		   (has-null phm-has-null)
 		   (null-value phm-null-value))
@@ -253,7 +253,7 @@
   (thm-ensure-editable map)
   (thm-do-assoc map key value))
 
-(defmethod val-at ((map transient-hash-map) key &optional not-found)
+(defmethod map-val-at ((map transient-hash-map) key &optional not-found)
   (thm-ensure-editable map)
   (thm-do-val-at map key not-found))
 

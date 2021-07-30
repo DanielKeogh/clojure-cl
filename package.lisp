@@ -13,7 +13,13 @@
    ))
 
 (defpackage #:clojure-cl.hash-table
-  (:use #:cl))
+  (:use #:cl)
+  (:export
+   :map-assoc
+   :map-make-iterator
+   :map-val-at
+   :create-persistent-map
+   ))
 
 (defpackage #:clojure-cl.tests
   (:use #:cl #:clojure-cl #:fiveam #:clojure-cl.hash-table))
