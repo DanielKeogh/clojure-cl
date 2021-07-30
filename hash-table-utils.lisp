@@ -7,6 +7,9 @@
   (equal v1 v2))
 
 (defun array-copy (src src-pos dest dest-start length)
+  (declare (optimize (speed 3) (safety 0))
+	   (type simple-array src dest)
+	   (type fixnum src-pos dest-start length))
   (loop repeat length
 	for src-index from src-pos
 	for dest-index from dest-start
@@ -16,12 +19,27 @@
   (sxhash x))
 
 (defun integer-count-bits (n)
-  (loop for i from 0 to 63
-	count (logbitp i n)))
+  (declare (optimize (speed 3) (safety 0))
+	   (type fixnum n))
+  (the fixnum
+       (loop for i from 0 to 63
+	     count (logbitp i n))))
+
+(defun copy-simple-array (arr)
+  (declare (optimize (speed 3) (safety 0))
+	   (type (simple-array t) arr))
+  (let* ((len (length arr))
+	 (r (make-array len)))
+    (dotimes (i len)
+      (setf (aref r i) (aref arr i)))
+    r))
 
 (defun integer-count-&-bits (n1 n2)
-  (loop for i from 0 to 63
-	count (and (logbitp i n1) (logbitp i n2))))
+  (declare (optimize (speed 3) (safety 0))
+	   (type fixnum n1 n2))
+  (loop with n = (logand n1 n2)
+	for i from 0 to 63
+	count (logbitp i n)))
 
 (defun remove-pair (array i)
   (let ((new-array (make-array (- (length array) 2))))

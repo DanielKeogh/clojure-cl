@@ -38,21 +38,21 @@
 (defstruct (hash-map-bitmap-node (:conc-name hmn-)
 				 (:include hash-map-node))
   (edit nil)
-  (bitmap nil :type integer)
-  (array nil :type vector))
+  (bitmap nil :type fixnum)
+  (array nil :type simple-array))
 
 (defstruct (hash-map-array-node (:conc-name hman-)
 				(:include hash-map-node))
   (edit nil)
   (count nil :type integer)
-  (array nil :type vector))
+  (array nil :type simple-array))
 
 (defstruct (hash-map-collision-node (:conc-name hmcn-)
 				    (:include hash-map-node))
   (edit nil)
   (hash nil :type integer :read-only t)
   (count nil :type integer)
-  (array nil :type vector))
+  (array nil :type simple-array))
 
 (defgeneric map-assoc (hash-map key val))
 (defgeneric map-make-iterator (hash-map))
@@ -65,21 +65,25 @@
 (defgeneric node-without-edit (node edit shift hash key removed-leaf))
 
 (defvar *empty-hash-iterator* (lambda () (lambda () (values nil nil nil))))
-(defvar *empty-hash-map-node* (make-hash-map-bitmap-node :bitmap 0 :array (vector)))
+(defvar *empty-hash-map-node* (make-hash-map-bitmap-node :bitmap 0 :array (make-array 0)))
 (defvar *empty-hash-map* (make-persistent-hash-map :count 0 :root nil :has-null nil :null-value nil))
 (defvar *not-found* (gensym))
 
 (defun hmn-index (node bit)
+  (declare (optimize (speed 3) (safety 0))
+	   (type fixnum bit))
   (integer-count-&-bits (hmn-bitmap node) (1- bit)))
 
 (defun mask (hash shift)
   (logand (ash hash (* -1 shift)) 31))
 
 (defun bitpos (hash shift)
-  (ash 1 (mask hash shift)))
+  (declare (optimize (speed 3) (safety 0))
+	   (type fixnum hash shift))
+  (the fixnum (ash 1 (mask hash shift))))
 
 (defun clone-and-set (array i new-val &optional j new-val2)
-  (let ((new-array (alexandria:copy-array array)))
+  (let ((new-array (copy-simple-array array)))
     (setf (aref new-array i) new-val)
     (when j
       (setf (aref new-array j) new-val2))
@@ -88,7 +92,7 @@
 (defun create-node (shift key1 val1 key2hash key2 val2)
   (let ((key1hash (hash key1)))
     (if (= key1hash key2hash)
-	(make-hash-map-collision-node :edit nil :hash key1hash :count 2 :array (vector key1 val1 key2 val2))
+	(make-hash-map-collision-node :edit nil :hash key1hash :count 2 :array (make-array 4 :initial-contents (list key1 val1 key2 val2)))
 	(let* ((added-leaf (make-box :val nil))
 	       (edit (make-atomic-reference))
 	       (n1 (node-assoc-edit *empty-hash-map-node* edit shift key1hash key1 val1 added-leaf)))
@@ -98,7 +102,7 @@
   ;; TODO: De-duplicate?
   (let ((key1hash (hash key1)))
     (if (= key1hash key2hash)
-	(make-hash-map-collision-node :edit nil :hash key1hash :count 2 :array (vector key1 val1 key2 val2))
+	(make-hash-map-collision-node :edit nil :hash key1hash :count 2 :array (make-array 0 :initial-contents (list key1 val1 key2 val2)))
 	(let* ((added-leaf (make-box :val nil))
 	       (n1 (node-assoc-edit *empty-hash-map-node* edit shift key1hash key1 val1 added-leaf)))
 	  (node-assoc-edit n1 edit shift key2hash key2 val2 added-leaf)))))
@@ -305,7 +309,7 @@
       node
       (make-hash-map-array-node :edit edit
 				:count (hman-count node)
-				:array (alexandria:copy-array (hman-array node)))))
+				:array (copy-simple-array (hman-array node)))))
 
 (defun hman-edit-and-set (node edit i n)
   (let ((editable (hman-ensure-editable node edit)))
@@ -496,54 +500,57 @@
 		 editable)))))))))
 
 (defmethod node-assoc ((node hash-map-bitmap-node) shift hash key val added-leaf)
+  (declare (optimize (speed 3) (safety 0))
+	   (type fixnum shift hash))
   (with-accessors ((bitmap hmn-bitmap)
 		   (array hmn-array))
       node
     (let* ((bit (bitpos hash shift))
-	   (idx (hmn-index node bit)))
+	   (idx (the fixnum (hmn-index node bit))))
       (if (/= 0 (logand bitmap bit))
-	(let ((key-or-null (aref array (* 2 idx)))
-	      (value-or-node (aref array (1+ (* 2 idx)))))
-	  (cond
-	    ((null key-or-null)
-	     (let ((n (node-assoc value-or-node (+ 5 shift) hash key val added-leaf)))
-	       (if (equal n value-or-node)
-		   node
-		   (make-hash-map-bitmap-node :bitmap bitmap
-					      :array (clone-and-set array (1+ (* 2 idx)) n)))))
+	  (let ((key-or-null (aref array (the fixnum (* 2 idx))))
+		(value-or-node (aref array (the fixnum (1+ (* 2 idx))))))
+	    (cond
+	      ((null key-or-null)
+	       (let ((n (node-assoc value-or-node (the fixnum (+ 5 shift)) hash key val added-leaf)))
+		 (if (equal n value-or-node)
+		     node
+		     (make-hash-map-bitmap-node :bitmap bitmap
+						:array (clone-and-set array (the fixnum (1+ (* 2 idx))) n)))))
 	    ((equiv key key-or-null)
 	     (if (equal val value-or-node)
 		 node
 		 (make-hash-map-bitmap-node :bitmap bitmap
-					    :array (clone-and-set array (1+ (* 2 idx)) val))))
+					    :array (clone-and-set array (the fixnum (1+ (* 2 idx))) val))))
 	    (t
 	     (setf (box-val added-leaf) added-leaf)
 	     (make-hash-map-bitmap-node :bitmap bitmap
 				 :array (clone-and-set array
-						       (* 2 idx) nil
-						       (1+ (* 2 idx))
-						       (create-node (+ 5 shift) key-or-null value-or-node hash key val))))))
+						       (the fixnum (* 2 idx)) nil
+						       (the fixnum (1+ (* 2 idx)))
+						       (create-node (the fixnum (+ 5 shift)) key-or-null value-or-node hash key val))))))
 	;; else
-	(let ((n (integer-count-bits bitmap)))
+	  (let ((n (the fixnum (integer-count-bits bitmap))))
 	  (if (>= n 16)
 	    (let* ((nodes (make-array 32 :initial-element nil))
 		   (jdx (mask hash shift))
 		   (j 0))
-	      (setf (aref nodes jdx) (node-assoc *empty-hash-map-node* (+ 5 shift) hash key val added-leaf))
+	      (declare (type fixnum j))
+	      (setf (aref nodes jdx) (node-assoc *empty-hash-map-node* (the fixnum (+ 5 shift)) hash key val added-leaf))
 	      (dotimes (i 32)
 		(when (/= 0 (logand (ash bitmap (- i)) 1)) ;; TODO logbitp
 		  (if (null (aref array j))
 		      (setf (aref nodes i) (aref array (1+ j)))
-		      (setf (aref nodes i) (node-assoc *empty-hash-map-node* (+ 5 shift) (hash (aref array j)) (aref array j) (aref array (1+ j)) added-leaf)))
+		      (setf (aref nodes i) (node-assoc *empty-hash-map-node* (the fixnum (+ 5 shift)) (hash (aref array j)) (aref array j) (aref array (1+ j)) added-leaf)))
 		  (incf j 2)))
 	      (make-hash-map-array-node :count (1+ n) :array nodes))
 	    ; else
 	    (let ((new-array (make-array (* 2 (1+ n)) :initial-element nil)))
-	      (array-copy array 0 new-array 0 (* 2 idx))
+	      (array-copy array 0 new-array 0 (the fixnum (* 2 idx)))
 	      (setf (aref new-array (* 2 idx)) key)
 	      (setf (box-val added-leaf) added-leaf)
 	      (setf (aref new-array (1+ (* 2 idx))) val)
-	      (array-copy array (* 2 idx) new-array (* 2 (1+ idx)) (* 2 (- n idx)))
+	      (array-copy array (the fixnum (* 2 idx)) new-array (the fixnum (* 2 (1+ idx))) (the fixnum (* 2 (- n idx))))
 	      (make-hash-map-bitmap-node :bitmap (logior bitmap bit) :array new-array))))))))
 
 (defmethod node-find ((node hash-map-bitmap-node) shift hash key not-found)
@@ -633,7 +640,7 @@
 		(setf (box-val added-leaf) added-leaf)
 		(make-hash-map-collision-node :edit edit :hash hash :count (1+ count) :array new-array))))
 
-	(node-assoc (make-hash-map-bitmap-node :bitmap (bitpos this-hash shift) :array (vector nil node))
+	(node-assoc (make-hash-map-bitmap-node :bitmap (bitpos this-hash shift) :array (make-array 2 :initial-contents (list nil node)))
 		    shift hash key val added-leaf))))
 
 (defmethod node-without ((node hash-map-collision-node) shift hash key)
@@ -688,7 +695,7 @@
 
 	(node-assoc-edit
 	 (make-hash-map-bitmap-node :edit edit :bitmap (bitpos this-hash shift)
-				    :array (vector nil node nil nil))
+				    :array (make-array 4 :initial-contents (list nil node nil nil)))
 	 edit shift hash key val added-leaf))))
 
 (defmethod node-without-edit ((node hash-map-collision-node) edit shift hash key removed-leaf)
@@ -741,3 +748,22 @@
 		   (prin1 val stream)
 		 (when nremaining (princ ", " stream)))
 	  (write-char #\} stream)))))
+
+;; Iteration-utils
+;; These are just here for some quick and dirty tests,
+;; and not to be exported in the api.
+
+(defun map-map (map fn)
+  "Apply (lambda (key val)) to all pairs in a persistent hash map and collect the result into a list."
+  (loop with itr = (funcall (map-make-iterator map))
+	for (remaining key val) = (multiple-value-list (funcall itr))
+	while remaining collect (funcall fn key val)))
+
+(defun map-reduce (map fn &optional start-val)
+  "Apply (lambda (start key val)) to aggregate all pairs of a persistent hash map."
+  (loop with itr = (funcall (map-make-iterator map))
+	for (remaining key val) = (multiple-value-list (funcall itr))
+	while remaining
+	for result = (funcall fn start-val key val)
+	  then (funcall fn result key val)
+	finally (return result)))
