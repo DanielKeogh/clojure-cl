@@ -476,7 +476,7 @@
 		    (j 0))
 	       (setf (aref nodes jdx) (node-assoc-edit *empty-hash-map-node* edit (+ 5 shift) hash key val added-leaf))
 	       (dotimes (i 32)
-		 (when (/= 0 (logand (ash bitmap i) 1)) ;; TODO logbitp
+		 (when (/= 0 (logand (ash bitmap (- i)) 1)) ;; TODO logbitp
 		   (if (null (aref array j))
 		       (setf (aref nodes i) (aref array (1+ j)))
 		       (setf (aref nodes i) (node-assoc-edit *empty-hash-map-node* edit (+ 5 shift) (hash (aref array j)) (aref array j) (aref array (1+ j)) added-leaf)))
@@ -531,7 +531,7 @@
 		   (j 0))
 	      (setf (aref nodes jdx) (node-assoc *empty-hash-map-node* (+ 5 shift) hash key val added-leaf))
 	      (dotimes (i 32)
-		(when (/= 0 (logand (ash bitmap i) 1)) ;; TODO logbitp
+		(when (/= 0 (logand (ash bitmap (- i)) 1)) ;; TODO logbitp
 		  (if (null (aref array j))
 		      (setf (aref nodes i) (aref array (1+ j)))
 		      (setf (aref nodes i) (node-assoc *empty-hash-map-node* (+ 5 shift) (hash (aref array j)) (aref array j) (aref array (1+ j)) added-leaf)))
