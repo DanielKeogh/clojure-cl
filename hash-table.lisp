@@ -394,7 +394,7 @@
 		  ((< i (length array))
 		   (let ((n (aref array i)))
 		     (if n
-			 (setf nested-itr (node-make-iterator n))
+			 (setf nested-itr (funcall (node-make-iterator n)))
 			 (incf i))))
 		  (t (return (values nil nil nil))))))))))
 
@@ -598,7 +598,7 @@
 		       (val (aref array (1+ i))))
 		   (incf i 2)
 		   (cond (key (return (values t key val)))
-			 (val (setf nested-itr (node-make-iterator val))))))
+			 (val (setf nested-itr (funcall (node-make-iterator val)))))))
 		(t (return (values nil nil nil)))))))))
 
 (defmethod node-make-iterator ((node hash-map-bitmap-node))
