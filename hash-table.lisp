@@ -39,20 +39,20 @@
 				 (:include hash-map-node))
   (edit nil)
   (bitmap nil :type fixnum)
-  (array nil :type simple-array))
+  (array nil :type (simple-array t)))
 
 (defstruct (hash-map-array-node (:conc-name hman-)
 				(:include hash-map-node))
   (edit nil)
   (count nil :type fixnum)
-  (array nil :type simple-array))
+  (array nil :type (simple-array t)))
 
 (defstruct (hash-map-collision-node (:conc-name hmcn-)
 				    (:include hash-map-node))
   (edit nil)
   (hash nil :type fixnum :read-only t)
   (count nil :type fixnum)
-  (array nil :type simple-array))
+  (array nil :type (simple-array t)))
 
 (defgeneric map-assoc (hash-map key val))
 (defgeneric map-make-iterator (hash-map))

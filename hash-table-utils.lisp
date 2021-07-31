@@ -8,7 +8,7 @@
 
 (defun array-copy (src src-pos dest dest-start length)
   (declare (optimize (speed 3) (safety 0))
-	   (type simple-array src dest)
+	   (type (simple-array t) src dest)
 	   (type fixnum src-pos dest-start length))
   (loop repeat length
 	for src-index from src-pos
