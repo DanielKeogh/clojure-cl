@@ -270,7 +270,7 @@
 
 (defun clj-list (coll)
   (let (r)
-    (do-seq [x coll]
+    (do-seq (vector x coll)
       (push x r))
     (nreverse r)))
 
@@ -278,7 +278,7 @@
   ;; Not lazy as per specification
   ;; TODO: For sets where we know the length, this could use a vector
   (let ((r nil))
-    (do-seq [x coll]
+    (do-seq (vector x coll)
       (push x r))
     r))
 
@@ -434,7 +434,7 @@
 (defmethod print-object ((seq clj-seq) stream)
   (write-char #\( stream)
   (let (after-first)
-    (do-seq [x seq]
+    (do-seq (vector x seq)
       (when after-first
 	(write-char #\  stream))
       (typecase x

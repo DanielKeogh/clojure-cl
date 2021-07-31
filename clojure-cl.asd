@@ -5,7 +5,7 @@
   :license "MIT"
   :version "0.0.1"
   :serial t
-  :depends-on (:collection-reader-macros :fiveam)
+  :depends-on (:fiveam)
   :components ((:file "package")
 	       (:file "hash-table-utils")
 	       (:file "hash-table")
