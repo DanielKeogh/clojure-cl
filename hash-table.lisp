@@ -57,6 +57,7 @@
 (defgeneric map-assoc (hash-map key val))
 (defgeneric map-make-iterator (hash-map))
 (defgeneric map-val-at (hash-map key &optional not-found))
+(defgeneric map-without (hash-map key))
 (defgeneric node-make-iterator (node))
 (defgeneric node-assoc (node shift hash key val addedLeaf))
 (defgeneric node-assoc-edit (node edit shift hash key val addedLeaf))
@@ -183,6 +184,28 @@
 			   (values t nil null-value))
 		    (funcall itr)))))
 	  base-itr-provider))))
+
+(defmethod map-without ((map persistent-hash-map) key)
+  (with-accessors ((meta phm-meta)
+		   (count phm-count)
+		   (root phm-root)
+		   (has-null phm-has-null))
+      map
+    (cond ((null key) (if (phm-has-null map)
+			  (make-persistent-hash-map :meta meta
+						    :count (1- count)
+						    :root root
+						    :has-null nil
+						    :null-value nil)))
+	  ((null root) map)
+	  (t (let ((new-root (node-without root 0 (hash key) key)))
+	       (if (eq root new-root)
+		   map
+		   (make-persistent-hash-map :meta meta
+					     :count (1- count)
+					     :root new-root
+					     :has-null has-null
+					     :null-value nil)))))))
 
 ;;; transient-hash-map impl
 
@@ -380,6 +403,28 @@
 		    (make-hash-map-array-node :edit nil
 					      :count count
 					      :array (clone-and-set array idx n)))))))))
+
+(defmethod node-without ((this hash-map-array-node) shift hash key)
+  (with-accessors ((array hman-array)
+		   (count hman-count))
+      this
+    (let* ((idx (mask hash shift))
+	   (node (aref array idx)))
+      (if (null node)
+	  this
+	  (let ((n (node-without node (+ 5 shift) hash key)))
+	    (cond ((eq n node) this)
+		  ((null n)
+		   (if (<= count 8)
+		       (hman-pack this nil idx)
+		       (make-hash-map-array-node
+			:edit nil
+			:count (1- count)
+			:array (clone-and-set array idx n))))
+		  (t (make-hash-map-array-node
+		      :edit nil
+		      :count count
+		      :array (clone-and-set array idx n)))))))))
 
 (defmethod node-find ((this hash-map-array-node) shift hash key not-found)
   (let* ((idx (mask hash shift))
@@ -595,6 +640,38 @@
 		   (t (hmn-edit-and-remove-pair node edit bit idx)))))
 	      ((equiv key key-or-null))
 	      (t node)))))))
+
+(defmethod node-without ((node hash-map-bitmap-node) shift hash key)
+  (with-accessors ((bitmap hmn-bitmap)
+		   (array hmn-array))
+      node
+    (let ((bit (bitpos hash shift)))
+      (if (= 0 (logand bitmap bit))
+	  node
+	  (let* ((idx (hmn-index node bit))
+		 (key-or-null (aref array (* 2 idx)))
+		 (val-or-node (aref array (1+ (* 2 idx)))))
+
+	    (cond ((null key-or-null)
+		   (let ((n (node-without val-or-node (+ shift 5) hash key)))
+		     (cond ((eq n val-or-node) node)
+			   (n (make-hash-map-bitmap-node
+			       :edit nil
+			       :bitmap bitmap
+			       :array (clone-and-set array (1+ (* 2 idx)) n)))
+			   ((= bitmap bit) nil)
+			   (t (make-hash-map-bitmap-node
+			       :edit nil
+			       :bitmap (logxor bitmap bit)
+			       :array (remove-pair array idx))))))
+
+		  ((equiv key key-or-null)
+		   (if (= bitmap bit) nil
+		       (make-hash-map-bitmap-node
+			:edit nil
+			:bitmap (logxor bitmap bit)
+			:array (remove-pair array idx))))
+		  (t node)))))))
 
 (defun node-make-array-iterator (array)
   (lambda ()

@@ -16,6 +16,7 @@
   (:use #:cl)
   (:export
    :map-assoc
+   :map-without
    :map-make-iterator
    :map-val-at
    :create-persistent-map
