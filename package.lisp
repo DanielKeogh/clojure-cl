@@ -1,5 +1,21 @@
 ;;;; package.lisp
 
+(defpackage #:clojure-cl.hash-table
+  (:use #:cl)
+  (:export
+   :map-assoc
+   :map-without
+   :map-make-iterator
+   :map-val-at
+   :create-persistent-map
+   ))
+
+(defpackage #:clojure-cl.reader-macros
+  (:use #:cl)
+  (:export
+   :enable-clojure-reader-macros
+   :disable-clojure-reader-macros))
+
 (defpackage #:clojure-cl
   (:use #:cl)
   (:export
@@ -10,16 +26,6 @@
    :seq
    :keys
    :vals
-   ))
-
-(defpackage #:clojure-cl.hash-table
-  (:use #:cl)
-  (:export
-   :map-assoc
-   :map-without
-   :map-make-iterator
-   :map-val-at
-   :create-persistent-map
    ))
 
 (defpackage #:clojure-cl.tests
