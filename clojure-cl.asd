@@ -7,7 +7,9 @@
   :serial t
   :depends-on (:fiveam)
   :components ((:file "package")
+	       (:file "persistence-utils")
 	       (:file "hash-table-utils")
 	       (:file "hash-table")
+	       (:file "vector")
 	       (:file "reader-macros")
                (:file "clojure-cl")))

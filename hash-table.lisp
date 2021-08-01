@@ -2,11 +2,6 @@
 
 (in-package :clojure-cl.hash-table)
 
-(defstruct atomic-reference
-  (val nil))
-
-(defun atomic-reference-get (ref) (atomic-reference-val ref))
-
 (defstruct map-entry
   (key nil :read-only t)
   (val nil :read-only t))
