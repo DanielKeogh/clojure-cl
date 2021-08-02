@@ -217,5 +217,5 @@
 	while remaining
 	for (next-remaining next-val) = (multiple-value-list (funcall itr))
 	do (prin1 val stream)
-	   (when next-remaining (write-string ", " stream)))
+	   (when next-remaining (write-char #\  stream)))
   (write-char #\] stream))

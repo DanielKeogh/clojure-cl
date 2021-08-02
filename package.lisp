@@ -20,7 +20,9 @@
    :create-persistent-map))
 
 (defpackage #:clojure-cl.vector
-  (:use #:cl #:clojure-cl.persistence-utils))
+  (:use #:cl #:clojure-cl.persistence-utils)
+  (:export
+   :create-persistent-vector))
 
 (defpackage #:clojure-cl.reader-macros
   (:use #:cl)
