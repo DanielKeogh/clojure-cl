@@ -4,7 +4,11 @@
   (:use #:cl)
   (:export
    :atomic-reference
-   :atomic-reference-get))
+   :atomic-reference-val
+   :make-atomic-reference
+   :atomic-reference-get
+   :copy-simple-array
+   :array-copy))
 
 (defpackage #:clojure-cl.hash-table
   (:use #:cl #:clojure-cl.persistence-utils)

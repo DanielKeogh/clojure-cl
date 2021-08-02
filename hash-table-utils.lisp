@@ -6,26 +6,8 @@
   ;; TODO: Some custom equality function?
   (equal v1 v2))
 
-(defun array-copy (src src-pos dest dest-start length)
-  (declare (optimize (speed 3) (safety 0))
-	   (type (simple-array t) src dest)
-	   (type fixnum src-pos dest-start length))
-  (loop repeat length
-	for src-index from src-pos
-	for dest-index from dest-start
-	do (setf (aref dest dest-index) (aref src src-index))))
-
 (defun hash (x)
   (sxhash x))
-
-(defun copy-simple-array (arr)
-  (declare (optimize (speed 3) (safety 0))
-	   (type (simple-array t) arr))
-  (let* ((len (length arr))
-	 (r (make-array len)))
-    (dotimes (i len)
-      (setf (aref r i) (aref arr i)))
-    r))
 
 (defun integer-count-&-bits (n1 n2)
   (declare (optimize (speed 3) (safety 0))
