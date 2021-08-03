@@ -145,6 +145,7 @@
 (defun seq (collection)
   (etypecase collection
     (vec:persistent-vector (when (> (vec:pv-count collection) 0) collection))
+    (vec:persistent-vector (when (> (vec:pv-count collection) 0) collection))
     (clj-seq collection)
     (string (when (> (length collection) 0) (make-string-clj-seq :string collection)))
     (vector (if (> (length collection) 0) (make-vector-clj-seq :vector collection)))

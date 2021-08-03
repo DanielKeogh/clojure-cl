@@ -9,7 +9,7 @@
 (defstruct box
   (val nil))
 
-(defstruct chash-map)
+(defstruct (chash-map (:include seq:clj-seq)))
 
 (defstruct (persistent-hash-map (:conc-name phm-)
 				(:include chash-map))
@@ -53,6 +53,7 @@
 (defgeneric map-make-iterator (hash-map))
 (defgeneric map-val-at (hash-map key &optional not-found))
 (defgeneric map-without (hash-map key))
+(defgeneric map-length (hash-map key))
 (defgeneric node-make-iterator (node))
 (defgeneric node-assoc (node shift hash key val addedLeaf))
 (defgeneric node-assoc-edit (node edit shift hash key val addedLeaf))
@@ -60,7 +61,7 @@
 (defgeneric node-without (node shift hash key))
 (defgeneric node-without-edit (node edit shift hash key removed-leaf))
 
-(defvar *empty-hash-iterator* (lambda () (lambda () (values nil nil nil))))
+(defvar *empty-hash-iterator* (lambda () (values nil nil nil)))
 (defvar *empty-hash-map-node* (make-hash-map-bitmap-node :bitmap 0 :array (make-array 0)))
 (defvar *empty-hash-map* (make-persistent-hash-map :count 0 :root nil :has-null nil :null-value nil))
 (defvar *not-found* (gensym))
@@ -170,14 +171,13 @@
     (let ((base-itr-provider (if root (node-make-iterator root)
 				 *empty-hash-iterator*)))
       (if has-null
-	  (lambda ()
-	    (let ((itr (funcall base-itr-provider))
-		  returned-nil)
-	      (lambda ()
-		(if returned-nil
-		    (progn (setf returned-nil t)
-			   (values t nil null-value))
-		    (funcall itr)))))
+	  (let ((itr (funcall base-itr-provider))
+		returned-nil)
+	    (lambda ()
+	      (if returned-nil
+		  (progn (setf returned-nil t)
+			 (values t nil null-value))
+		  (funcall itr))))
 	  base-itr-provider))))
 
 (defmethod map-without ((map persistent-hash-map) key)
@@ -201,6 +201,9 @@
 					     :root new-root
 					     :has-null has-null
 					     :null-value nil)))))))
+
+(defmethod map-count ((map persistent-hash-map))
+  (phm-count map))
 
 ;;; transient-hash-map impl
 
@@ -293,15 +296,17 @@
     (let ((base-itr-provider (if root (node-make-iterator root)
 				 *empty-hash-iterator*)))
       (if has-null
-	  (lambda ()
-	    (let ((itr (funcall base-itr-provider))
-		  returned-nil)
-	      (lambda ()
-		(if returned-nil
-		    (progn (setf returned-nil t)
-			   (values t nil null-value))
-		    (funcall itr)))))
+	  (let ((itr (funcall base-itr-provider))
+		returned-nil)
+	    (lambda ()
+	      (if returned-nil
+		  (progn (setf returned-nil t)
+			 (values t nil null-value))
+		  (funcall itr))))
 	  base-itr-provider))))
+
+(defmethod map-count ((map transient-hash-map))
+  (thm-count map))
 
 ;;; hash-map-array-node
 
@@ -813,7 +818,7 @@
 	(format stream "<Map Count:~a>" (phm-count map))
 	(progn
 	  (write-char #\{ stream)
-	  (loop with itr = (funcall (map-make-iterator map))
+	  (loop with itr = (map-make-iterator map)
 		for (remaining key val) = (multiple-value-list (funcall itr))
 		  then (list nremaining nkey nval)
 		for (nremaining nkey nval) = (if remaining
@@ -835,13 +840,13 @@
 
 (defun map-map (map fn)
   "Apply (lambda (key val)) to all pairs in a persistent hash map and collect the result into a list."
-  (loop with itr = (funcall (map-make-iterator map))
+  (loop with itr = (map-make-iterator map)
 	for (remaining key val) = (multiple-value-list (funcall itr))
 	while remaining collect (funcall fn key val)))
 
 (defun map-reduce (map fn &optional start-val)
   "Apply (lambda (start key val)) to aggregate all pairs of a persistent hash map."
-  (loop with itr = (funcall (map-make-iterator map))
+  (loop with itr = (map-make-iterator map)
 	for (remaining key val) = (multiple-value-list (funcall itr))
 	while remaining
 	for result = (funcall fn start-val key val)

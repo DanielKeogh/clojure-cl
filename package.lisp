@@ -19,6 +19,12 @@
 (defpackage #:clojure-cl.hash-table
   (:use #:cl #:clojure-cl.persistence-utils)
   (:export
+   ;; types
+   :chash-map
+   :persistent-hash-map
+   :transient-hash-map
+   ;; methods
+   :map-count
    :map-assoc
    :map-without
    :map-make-iterator
@@ -44,6 +50,7 @@
 (defpackage #:clojure-cl
   (:use #:cl #:clojure-cl.sequences)
   (:local-nicknames (#:vec #:clojure-cl.vector)
+		    (#:hash #:clojure-cl.hash-table)
 		    (#:reader-macros #:clojure-cl.reader-macros))
   (:export
    ;; String manipulation
