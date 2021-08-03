@@ -32,3 +32,4 @@
 (def-test vals (:suite test-suite)
   (is (null (vals {}))))
 
+(clojure-cl.reader-macros:disable-clojure-reader-macros)
