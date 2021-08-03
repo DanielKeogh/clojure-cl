@@ -3,6 +3,8 @@
 (in-package :clojure-cl.tests)
 (in-suite* :clojure-cl.tests)
 
+(clojure-cl.reader-macros:enable-clojure-reader-macros)
+
 (def-suite test-suite :description "Tests for clojure rip-off in Common Lisp")
 
 (def-test is-str (:suite test-suite)
@@ -19,13 +21,14 @@
   (is (typep (seq (seq (list 1 2 3))) 'clj-seq))
   (is (null (seq nil)))
   (is (null (seq (vector))))
+  (is (null (seq (vec))))
   (is (null (seq ())))
-  (is (null (seq ())))
+  (is (null (seq [])))
   (is (null (seq ""))))
 
 (def-test keys (:suite test-suite)
   (is (null (keys (make-hash-table)))))
 
-(deftest vals (:suite test-suite)
+(def-test vals (:suite test-suite)
   (is (null (vals {}))))
 

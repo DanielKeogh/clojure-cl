@@ -7,6 +7,7 @@
   :serial t
   :depends-on (:fiveam)
   :components ((:file "package")
+	       (:file "sequences")
 	       (:file "persistence-utils")
 	       (:file "hash-table-utils")
 	       (:file "hash-table")
