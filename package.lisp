@@ -60,6 +60,7 @@
    :seq
    :keys
    :vals
+   :range
    ;; Vectors
    :vec))
 

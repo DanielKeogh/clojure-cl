@@ -142,10 +142,39 @@
 (defmethod make-iterator ((vec vec:persistent-vector))
   (vec:pv-make-iterator vec))
 
+(defmacro with-hash-itr ((remaining-arg key-arg val-arg) map &body body)
+  (alexandria:with-gensyms (itr)
+    `(let ((,itr (hash:map-make-iterator ,map)))
+       (lambda ()
+	 (multiple-value-bind (,remaining-arg ,key-arg ,val-arg)
+	     (funcall ,itr)
+	   (declare (ignorable ,key-arg ,val-arg))
+	   (if ,remaining-arg
+	       (progn ,@body)
+	       (values nil nil)))))))
+
+(defmethod make-iterator ((map hash:chash-map))
+  (with-hash-itr (remaining key val) map
+    (values remaining (vec key val))))
+
+(defstruct (hash-keys-clj-seq (:include clj-seq))
+  (map nil :type hash:chash-map))
+
+(defstruct (hash-values-clj-seq (:include clj-seq))
+  (map nil :type hash:chash-map))
+
+(defmethod make-iterator ((map hash-keys-clj-seq))
+  (with-hash-itr (remaining key val) (hash-keys-clj-seq-map map)
+    (values remaining key)))
+
+(defmethod make-iterator ((map hash-values-clj-seq))
+  (with-hash-itr (remaining key val) (hash-values-clj-seq-map map)
+    (values remaining key)))
+
 (defun seq (collection)
   (etypecase collection
     (vec:persistent-vector (when (> (vec:pv-count collection) 0) collection))
-    (vec:persistent-vector (when (> (vec:pv-count collection) 0) collection))
+    (hash:chash-map (when (> (hash:map-count collection) 0) collection))
     (clj-seq collection)
     (string (when (> (length collection) 0) (make-string-clj-seq :string collection)))
     (vector (if (> (length collection) 0) (make-vector-clj-seq :vector collection)))
@@ -154,12 +183,14 @@
 
 (defun vals (map)
   (etypecase map
+    (hash:chash-map (when (> (hash:map-count map) 0) (make-hash-values-clj-seq :map map)))
     (hash-table (when (> (hash-table-count map) 0)
-		  (seq (alexandria:hash-table-values map)))) ;; Not lazy. Yukky.
+		  (seq (alexandria:hash-table-values map))))
     (null nil)))
 
 (defun keys (map)
   (etypecase map
+    (hash:chash-map (when (> (hash:map-count map) 0) (make-hash-keys-clj-seq :map map)))
     (hash-table (when (> (hash-table-count map) 0)
 		  (seq (alexandria:hash-table-keys map))))
     (null nil)))

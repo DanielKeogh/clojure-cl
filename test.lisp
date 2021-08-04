@@ -31,9 +31,11 @@
   (is (null (seq {}))))
 
 (def-test keys (:suite test-suite)
-  (is (null (keys (make-hash-table)))))
+  (is (null (keys (make-hash-table))))
+  (is (null (keys {}))))
 
 (def-test vals (:suite test-suite)
+  (is (null (vals (make-hash-table))))
   (is (null (vals {}))))
 
 (clojure-cl.reader-macros:disable-clojure-reader-macros)
