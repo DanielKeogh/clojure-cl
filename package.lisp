@@ -41,8 +41,12 @@
    :pv-count)
   (:local-nicknames (#:seq #:clojure-cl.sequences)))
 
+(defpackage #:clojure-cl.namespace
+  (:use #:cl))
+
 (defpackage #:clojure-cl.reader-macros
   (:use #:cl)
+  (:local-nicknames (#:namespace #:clojure-cl.namespace))
   (:export
    :enable-clojure-reader-macros
    :disable-clojure-reader-macros))
