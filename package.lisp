@@ -56,6 +56,7 @@
    ;; String manipulation
    :str
    ;; Sequences
+   :doseq
    :clj-seq
    :seq
    :keys

@@ -37,15 +37,13 @@
 
 ;; enable/disable reader macros
 
-(defmacro enable-clojure-reader-macros ()
-  '(eval-when (:compile-toplevel :load-toplevel :execute)
-    (push *readtable* *previous-readtables*)
-    (setf *readtable* (copy-readtable))
-    (set-macro-character +left-brace+ 'hash-table-reader)
-    (set-macro-character +right-brace+ 'no-matching-brace)
-    (set-macro-character +left-bracket+ 'vector-reader)
-    (set-macro-character +right-bracket+ 'no-matching-bracket)))
+(defun enable-clojure-reader-macros ()
+  (push *readtable* *previous-readtables*)
+  (setf *readtable* (copy-readtable))
+  (set-macro-character +left-brace+ 'hash-table-reader)
+  (set-macro-character +right-brace+ 'no-matching-brace)
+  (set-macro-character +left-bracket+ 'vector-reader)
+  (set-macro-character +right-bracket+ 'no-matching-bracket))
 
-(defmacro disable-clojure-reader-macros ()
-  '(eval-when (:compile-toplevel :load-toplevel :execute)
-    (setf *readtable* (pop *previous-readtables*))))
+(defun disable-clojure-reader-macros ()
+  (setf *readtable* (pop *previous-readtables*)))

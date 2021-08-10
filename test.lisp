@@ -7,6 +7,14 @@
 
 (def-suite test-suite :description "Tests for clojure rip-off in Common Lisp")
 
+(defun seq-equal (s1 s2)
+  (do-seq
+      [e1 s1
+    e2 s2]
+    j
+    ))
+(defun seq-equal-unordered (s1 s2))
+
 (def-test is-str (:suite test-suite)
   (is (equal "happy" (str "happy")))
   (is (equal "" (str)))
@@ -32,10 +40,13 @@
 
 (def-test keys (:suite test-suite)
   (is (null (keys (make-hash-table))))
-  (is (null (keys {}))))
+  (is (null (keys {})))
+  (is ))
 
 (def-test vals (:suite test-suite)
   (is (null (vals (make-hash-table))))
   (is (null (vals {}))))
+
+(def-test )
 
 (clojure-cl.reader-macros:disable-clojure-reader-macros)
