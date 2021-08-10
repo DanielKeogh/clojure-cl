@@ -8,6 +8,8 @@
 (defconstant +right-brace+ #\})
 (defconstant +left-bracket+ #\[)
 (defconstant +right-bracket+ #\])
+(defconstant +left-paren+ #\()
+(defconstant +right-paren+ #\))
 (defvar *previous-readtables* nil)
 
 ;; hash-table-reader
@@ -35,6 +37,17 @@
   (declare (ignore stream char))
   (error "No matching [ for ]"))
 
+;; paren reader
+
+(defun paren-reader (stream char)
+  (declare (ignore char))
+  (let ((lst (read-delimited-list +right-paren+ stream)))
+    lst))
+
+(defun no-matching-paren (stream char)
+  (declare (ignore stream char))
+  (error "No matching ( for )"))
+
 ;; enable/disable reader macros
 
 (defun enable-clojure-reader-macros ()
@@ -43,7 +56,9 @@
   (set-macro-character +left-brace+ 'hash-table-reader)
   (set-macro-character +right-brace+ 'no-matching-brace)
   (set-macro-character +left-bracket+ 'vector-reader)
-  (set-macro-character +right-bracket+ 'no-matching-bracket))
+  (set-macro-character +right-bracket+ 'no-matching-bracket)
+  (set-macro-character +left-paren+ 'paren-reader)
+  (set-macro-character +right-paren+ 'no-matching-paren))
 
 (defun disable-clojure-reader-macros ()
   (setf *readtable* (pop *previous-readtables*)))

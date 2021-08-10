@@ -12,5 +12,6 @@
 	       (:file "hash-table-utils")
 	       (:file "hash-table")
 	       (:file "vector")
+	       (:file "namespace")
 	       (:file "reader-macros")
                (:file "clojure-cl")))
