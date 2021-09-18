@@ -91,7 +91,7 @@ Creates and interns a global var with the name of symbol in the current namespac
   (declare (ignore symbol doc-string init))
   (error "TODO"))
 
-(defun import (&rest body)
+(defun cl-import (&rest body)
   "Usage: (import & import-symbols-or-lists)
 
 import-list => (package-symbol class-name-symbols*)
